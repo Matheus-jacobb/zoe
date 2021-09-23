@@ -7,7 +7,9 @@ global.app = express();
 const ytdl = require('ytdl-core');
 const ytSearch = require('yt-search');
 
+
 client.login(config.token);
+var video;
 
 client.on("ready", async () => {
 
@@ -22,9 +24,15 @@ client.on("message", async (message) => {
     message.channel.type == "dm")
     return
 
+    console.log(message.content);
+    let obj = JSON.parse(message.content);
+    // console.log('teste');
+    // let obj2 = JSON.parse('{"firstname":"John","Data":"13/07/200"}')
+    console.log(obj);
+    // console.log(obj2);
   if (message.content.startsWith(config.prefix)) {
     if (message.content == 'zoe')
-      message.channel.send('> Olá miguxo')
+    message.channel.send('> Olá miguxo')
     if (message.content == `${config.prefix} tudo bem?`)
       message.channel.send('> Estou ótima! 🧏‍♀️ e você ? 🤸‍♀️')
 
@@ -32,7 +40,6 @@ client.on("message", async (message) => {
       const { voice } = message.member
       let args = message.content.split('zoe play ')[1]
       let command = message.content.substring(`$(config.prefix.length) play`).split(" ")[1]
-      console.log(args)
 
       if (!voiceChannel) return message.channel.send('> You need to be in a voice channel to execute this command!');
       const permissions = voiceChannel.permissionsFor(message.client.user);
@@ -56,7 +63,7 @@ client.on("message", async (message) => {
           const video = await videoFinder(args);
 
           if (video) {
-            const stream = ytdl(video.url, { filter: 'audioonly' })
+            const stream = ytdl(video.url, { filter: 'audioonly', type: 'opus', dlChunkSize: 2000000, highWaterMark: 1<<25 })
             connection.play(stream, { seek: 0, volume: 1 })
               .on('finish', () => {
                 voiceChannel.leave();
@@ -72,6 +79,57 @@ client.on("message", async (message) => {
           console.error(e);
         });
       })
+    }
+
+    const { voice } = message.member
+
+    if (message.content === (`${config.prefix} lança a braba`)){
+      await message.reply(`😊Estou procurando a braba pra você!`)
+      if (!voiceChannel) return message.channel.send('> You need to be in a voice channel to execute this command!');
+      const permissions = voiceChannel.permissionsFor(message.client.user);
+      if (!permissions.has('CONNECT')) return message.channel.send('You dont have the correct permissions')
+      if (!permissions.has('SPEAK')) return message.channel.send('You dont have the correct permissions')
+
+      client.channels.fetch(voice.channelID).then(channel => {
+        if (!channel) return console.error("The channel does not exist!");
+        let connection = channel.join().then(async (connection) => {
+          // Yay, it worked!
+          console.log("Successfully connected.");
+          playVideo();
+
+           async function playVideo(){
+          const videoFinder = async (query) => {
+            const videoResult = await ytSearch(query);
+
+            return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
+          }
+                                                                                                            
+          video = await videoFinder('lofi-radio');
+
+          if (video) {
+            const stream = ytdl(video.url, { filter: 'audioonly' , type: 'opus', dlChunkSize: 2000000, highWaterMark: 1<<25})
+            connection.play(stream, { seek: 0, volume: 1 })
+              .on('finish', async() => {
+                playVideo();
+              });
+
+            await message.reply(`😘 Lançando a braba versão ***${video.title}***`)
+          } else {
+            message.channel.send('> Sorry, não encontrei nenhuma música com esse nome 😢 !');
+          }
+        }
+        }).catch(e => {
+          // Oh no, it errored! Let's log it to console :slight_smile:
+          console.error(e);
+        });
+      })
+    }
+
+    if(message.content === 'zoe ?'){
+      if(video && video.title)
+      await message.reply(`😘 Estou tocando ***${video.title}***`)
+      else
+      await message.reply(`🤸‍♀️ Não estou tocando nada`)
     }
 
     if(message.content === 'zoe vaza'){
